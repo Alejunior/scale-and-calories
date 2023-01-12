@@ -1,0 +1,119 @@
+---
+title: "Visualizing Data in the Tidyverse Course Project"
+author: "ALE Junior"
+date: "2023-01-12"
+output: html_document
+---
+
+**Overview**
+
+In this project, we will practice data visualiation skills using the Tidyverse. The overall goal is to explore the nutrition of entree items and the sales of fast food restaurants in 2018. Your task is to reconstruct the a set of plots, all of which were constructed using packages in the Tidyverse or packages that integrate with the Tidyverse. 
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r loading libraries}
+pacman::p_load(
+  tidyverse,
+  ggplot2,
+  ggrepel,
+  forcats,
+  scales
+)
+```
+
+**Problem 1**
+
+```{r loading data}
+sales<-read_csv("dfsal.csv")
+
+calories<-read_csv("dfcal.csv")
+```
+
+```{r  task 1}
+
+plot1 <-sales %>%
+    mutate(prop=num_franchised_stores/unit_count)
+
+ggplot(plot1, aes(x=us_sales, y=unit_count, label = restaurant)) + 
+    geom_point(aes(color=prop)) +
+    scale_x_log10() + 
+    scale_y_log10() +
+    theme_bw() +
+    geom_text_repel(aes(label=restaurant)) +
+    labs(x="Total number of stores (log10 scale)", 
+         y="U.S. sales in millions (log10 scale)",
+         color="Proportion of stores franchised")
+```
+
+**Problem 2**
+
+```{r task 2}
+
+ggplot(sales, aes(x=average_sales, y=fct_reorder(restaurant, average_sales))) +
+    geom_bar(stat="identity") +
+    theme_classic() + 
+    geom_text(aes(label=paste0("$", round(average_sales,0))), hjust=-0.1) +
+    scale_x_continuous(labels=dollar_format()) +
+    labs(x="Average sales per unit store (in thousands)", 
+         y="Restaurant")
+```
+
+**Problem 3**
+
+```{r task 3}
+
+ggplot(calories, aes(x=calories, y=sodium)) + 
+    facet_wrap(~restaurant) +
+    geom_hline(yintercept=2300) + 
+    theme_bw() + 
+    labs(x="Calories", y="Sodium (mg)") +
+    geom_text_repel(data=calories %>% filter(sodium>2300), 
+                    aes(label=item), 
+                    direction="y",
+                    nudge_y=750,
+                    nudge_x=750,
+                    size=3) +
+    geom_point(size=2)
+```
+
+**Problem 4**
+
+```{r task 4}
+
+q4 <-calories %>%
+    mutate(is_salad=str_detect(item, "[Ss]alad"))
+
+ggplot(q4, aes(x=fct_reorder(restaurant, calories), y=calories)) + 
+    geom_boxplot(outlier.shape = NA) + 
+    geom_point(aes(color=is_salad),
+                position=position_jitterdodge()) +
+    scale_y_log10() +
+    coord_flip() +
+    theme_bw() +
+    labs(x="Restaurant", y="Calories (log10 scale)", color="Is the entree\n a salad?") +
+    scale_color_discrete(labels=c("Not a salad", "Salad"))
+```
+
+
+**Problem 5**
+
+```{r task 5}
+
+q5<-calories %>%
+    filter(restaurant!="Taco Bell") %>%
+    group_by(restaurant) %>%
+    summarise(median_sugar=median(sugar)) %>%
+    filter(restaurant %in% sales$restaurant) %>%
+    inner_join(sales[,c(1,3)], by="restaurant")
+
+ggplot(q5, aes(x=fct_reorder(restaurant, us_sales), y=us_sales)) +
+    geom_bar(aes(fill=median_sugar), stat="identity") +
+    scale_fill_viridis_c() +
+    labs(x="Restaurant", y="U.S. sales (in millions)", fill="Median sugar (grams)\n in fast food entrees") + 
+    theme_classic()
+
+```
+
